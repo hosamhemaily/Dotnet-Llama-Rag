@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: dotnetllamarag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag}
+      POSTGRES_USER: ${POSTGRES_USER:-rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rag} -d ${POSTGRES_DB:-rag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dotnetllamarag-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # Uncomment to enable NVIDIA GPU acceleration (requires the NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # Optional: run the API itself in Docker instead of `dotnet run`. Uncomment to use it.
+  # When enabled, set Ollama:BaseUrl / ConnectionStrings:Postgres to the service names below
+  # (the API can then reach the other containers by service name instead of localhost).
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Rag.Api/Dockerfile
+  #   container_name: dotnetllamarag-api
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     ollama:
+  #       condition: service_started
+  #   environment:
+  #     ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-rag};Username=${POSTGRES_USER:-rag};Password=${POSTGRES_PASSWORD:-rag}"
+  #     Ollama__BaseUrl: "http://ollama:11434"
+  #     LLAMACLOUD_API_KEY: "${LLAMACLOUD_API_KEY:-}"
+  #   ports:
+  #     - "8080:8080"
+
+volumes:
+  postgres-data:
+  ollama-data:
